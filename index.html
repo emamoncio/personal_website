@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retro Portfolio Showcase</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'MS Sans Serif', Arial, sans-serif;
+            overflow: hidden;
+            background: #000;
+            color: #000;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            transition: opacity 0.9s ease;
+        }
+
+        #canvas-container.fade-out {
+            opacity: 0.25;
+        }
+
+        #root,
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .start-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.94);
+            pointer-events: all;
+            transition: opacity 0.5s ease;
+        }
+
+        .start-box {
+            border: 3px solid #fff;
+            padding: 42px 48px;
+            text-align: center;
+            background: #000;
+            max-width: 420px;
+        }
+
+        .start-box h1 {
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 12px;
+            font-size: 24px;
+            letter-spacing: 0.06em;
+        }
+
+        .start-box p {
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 22px;
+        }
+
+        .button {
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            padding: 8px 24px;
+            cursor: pointer;
+            font-family: 'MS Sans Serif', Arial, sans-serif;
+            font-size: 14px;
+            pointer-events: all;
+            transition: transform 0.1s ease;
+        }
+
+        .button:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+            transform: translateY(1px);
+        }
+
+        .button:hover {
+            background: #d8d8d8;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 26px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #0f0;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+        }
+
+        .loading-bar {
+            width: 220px;
+            height: 10px;
+            border: 1px solid #0f0;
+            overflow: hidden;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(to right, #0f0, #00ffaa);
+            transition: width 0.3s ease;
+        }
+
+        .click-instruction {
+            position: absolute;
+            bottom: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: #fff;
+            padding: 16px 34px;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #fff;
+            pointer-events: all;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .click-instruction.visible {
+            opacity: 1;
+        }
+
+        .window {
+            position: absolute;
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.45);
+            pointer-events: all;
+            max-width: 780px;
+            max-height: 80vh;
+            overflow-y: auto;
+            opacity: 0;
+            transform: translate(-50%, -45%) scale(0.92);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .window.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .title-bar {
+            background: linear-gradient(to right, #000080, #1084d0);
+            color: #fff;
+            padding: 5px 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .close-btn {
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .close-btn:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+        }
+
+        .window-content {
+            padding: 22px;
+            background: #fff;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(0, 0, 0, 0.92);
+            color: #0f0;
+            padding: 12px 18px;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #0f0;
+            pointer-events: all;
+            opacity: 0;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            transform: translateY(-10px);
+        }
+
+        .info-panel.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .nav-menu {
+            position: absolute;
+            left: 24px;
+            top: 120px;
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            pointer-events: all;
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .nav-menu.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .nav-item {
+            padding: 10px 24px;
+            cursor: pointer;
+            border-bottom: 1px solid #808080;
+            background: #c0c0c0;
+            color: #000;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: #000080;
+            color: #fff;
+        }
+
+        h2 {
+            color: #000080;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        h3 {
+            color: #000;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        p {
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-bottom: 18px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        a {
+            color: #0000ff;
+            text-decoration: underline;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 2px inset #808080;
+            font-family: 'MS Sans Serif', Arial, sans-serif;
+            margin-bottom: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        .project-category {
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            padding: 20px;
+            margin-bottom: 16px;
+            background: #f0f0f0;
+        }
+
+        .project-category:not(:last-child) {
+            margin-bottom: 20px;
+        }
+
+        .project-category h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .project-category strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        @media (max-width: 900px) {
+            .window {
+                max-width: 90%;
+                left: 50% !important;
+                right: 5%;
+            }
+
+            .nav-menu {
+                top: auto;
+                bottom: 40px;
+                display: flex;
+            }
+
+            .nav-item {
+                border-bottom: none;
+                border-right: 1px solid #808080;
+            }
+
+            .nav-item:last-child {
+                border-right: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                overflow: auto;
+            }
+
+            #canvas-container,
+            #ui-overlay,
+            #root {
+                position: static;
+                height: auto;
+            }
+
+            .start-screen,
+            .click-instruction,
+            .loading-overlay {
+                position: static;
+                transform: none;
+                width: 100%;
+                border-radius: 0;
+            }
+
+            .click-instruction {
+                margin-top: 20px;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                position: static;
+                width: 100%;
+            }
+
+            .window {
+                position: static;
+                transform: none !important;
+                max-width: 100%;
+                width: 100%;
+                box-shadow: none;
+                border-left-width: 0;
+                border-right-width: 0;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useEffect, useRef, useState } = React;
+
+        const PORTFOLIO_CONFIG = {
+            name: "Your Name",
+            title: "Software Engineer",
+            email: "your.email@example.com",
+            about: {
+                greeting: "Welcome",
+                intro: "I'm a software engineer currently working at [Company]. I graduated from [University] with my degree in Computer Science.",
+                description:
+                    "Thank you for taking the time to check out my portfolio. I really hope you enjoy exploring it as much as I enjoyed building it. If you have any questions or comments, feel free to contact me using the contact form or shoot me an email.",
+                resume: "Looking for my resume? Click here to download it!",
+            },
+            experience: [
+                {
+                    company: "Company Name",
+                    role: "Frontend Engineer",
+                    period: "Summer 2020 - Fall 2021",
+                    website: "www.company.com",
+                    achievements: [
+                        "Built and maintained core features using React, TypeScript, and modern web technologies",
+                        "Improved application performance and user experience across the platform",
+                        "Collaborated with cross-functional teams to deliver high-quality products",
+                        "Implemented responsive designs and accessibility features",
+                    ],
+                },
+            ],
+            projects: [
+                {
+                    category: "Software",
+                    icon: "💻",
+                    items: [
+                        {
+                            name: "Project Name",
+                            description: "A cool project I built using modern technologies",
+                            tech: ["React", "Node.js", "MongoDB"],
+                        },
+                    ],
+                },
+                {
+                    category: "Design",
+                    icon: "🎨",
+                    items: [
+                        {
+                            name: "Design Project",
+                            description: "Creative design work and visual projects",
+                            tech: ["Figma", "Photoshop"],
+                        },
+                    ],
+                },
+            ],
+            social: {
+                github: "https://github.com/yourusername",
+                linkedin: "https://linkedin.com/in/yourusername",
+                twitter: "https://twitter.com/yourusername",
+            },
+        };
+
+        const CAMERA_STATES = {
+            IDLE: "idle",
+            APPROACHING: "approaching",
+            AT_DESK: "at_desk",
+            ZOOMING: "zooming",
+            AT_MONITOR: "at_monitor",
+            RETURNING: "returning",
+        };
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function ThreeScene({
+            stage,
+            onReadyForClick,
+            onAnimationComplete,
+            onReturnComplete,
+            onLoadProgress,
+            onModelsLoaded,
+        }) {
+            const containerRef = useRef(null);
+            const rendererRef = useRef(null);
+            const cameraRef = useRef(null);
+            const sceneRef = useRef(null);
+            const clockRef = useRef(new THREE.Clock());
+            const glbGroupRef = useRef(null);
+            const fallbackGroupRef = useRef(null);
+            const cameraStateRef = useRef(CAMERA_STATES.IDLE);
+            const animStartTimeRef = useRef(0);
+            const lastTimeRef = useRef(0);
+
+            useEffect(() => {
+                if (!containerRef.current) return;
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xdcdcdc);
+                scene.fog = new THREE.Fog(0xdcdcdc, 14, 42);
+                sceneRef.current = scene;
+
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.outputEncoding = THREE.sRGBEncoding;
+                rendererRef.current = renderer;
+                containerRef.current.appendChild(renderer.domElement);
+
+                const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 200);
+                camera.position.set(4.5, 2.6, 6.2);
+                camera.lookAt(0, 1.1, 0);
+                cameraRef.current = camera;
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+                scene.add(ambientLight);
+
+                const hemiLight = new THREE.HemisphereLight(0xf0f4ff, 0x707070, 0.45);
+                hemiLight.position.set(0, 8, 0);
+                scene.add(hemiLight);
+
+                const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+                keyLight.position.set(5, 9, 7);
+                keyLight.castShadow = true;
+                keyLight.shadow.mapSize.set(2048, 2048);
+                keyLight.shadow.camera.near = 1;
+                keyLight.shadow.camera.far = 30;
+                keyLight.shadow.camera.left = -10;
+                keyLight.shadow.camera.right = 10;
+                keyLight.shadow.camera.top = 10;
+                keyLight.shadow.camera.bottom = -10;
+                scene.add(keyLight);
+
+                const rimLight = new THREE.DirectionalLight(0xffffff, 0.35);
+                rimLight.position.set(-6, 5, -4);
+                scene.add(rimLight);
+
+                const floorGeometry = new THREE.CircleGeometry(16, 48);
+                const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.85, metalness: 0.05 });
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.rotation.x = -Math.PI / 2;
+                floor.position.y = 0;
+                floor.receiveShadow = true;
+                scene.add(floor);
+
+                const glbGroup = new THREE.Group();
+                scene.add(glbGroup);
+                glbGroupRef.current = glbGroup;
+
+                const fallbackGroup = new THREE.Group();
+                scene.add(fallbackGroup);
+                fallbackGroupRef.current = fallbackGroup;
+                buildFallbackDesk(fallbackGroup);
+
+                const manager = new THREE.LoadingManager();
+                const loader = new THREE.GLTFLoader(manager);
+
+                manager.onProgress = (_, loaded, total) => {
+                    if (onLoadProgress && total) {
+                        onLoadProgress(loaded / total);
+                    }
+                };
+
+                manager.onLoad = () => {
+                    if (fallbackGroupRef.current) {
+                        fallbackGroupRef.current.visible = false;
+                    }
+                    if (onModelsLoaded) {
+                        onModelsLoaded();
+                    }
+                };
+
+                const assets = [
+                    { path: './assets/computer_setup.glb', position: new THREE.Vector3(0, 0, 0), scale: new THREE.Vector3(1, 1, 1) },
+                    { path: './assets/decor.glb', position: new THREE.Vector3(0, 0, 0), scale: new THREE.Vector3(1, 1, 1) },
+                    { path: './assets/environment.glb', position: new THREE.Vector3(0, 0, 0), scale: new THREE.Vector3(1, 1, 1) },
+                ];
+
+                assets.forEach(({ path, position, scale }) => {
+                    loader.load(
+                        path,
+                        (gltf) => {
+                            gltf.scene.position.copy(position);
+                            gltf.scene.scale.copy(scale);
+                            gltf.scene.traverse((child) => {
+                                if (child.isMesh) {
+                                    child.castShadow = true;
+                                    child.receiveShadow = true;
+                                    if (child.material) {
+                                        child.material.side = THREE.DoubleSide;
+                                    }
+                                }
+                            });
+                            glbGroup.add(gltf.scene);
+                        },
+                        undefined,
+                        (error) => {
+                            console.warn(`Failed to load ${path}`, error);
+                        }
+                    );
+                });
+
+                let idleAngle = 0;
+
+                function animate(timestamp) {
+                    const delta = clockRef.current.getDelta();
+                    const state = cameraStateRef.current;
+
+                    if (!lastTimeRef.current) {
+                        lastTimeRef.current = timestamp;
+                    }
+
+                    if (state === CAMERA_STATES.IDLE) {
+                        idleAngle += delta * 0.16;
+                        camera.position.x = Math.sin(idleAngle) * 6.5;
+                        camera.position.z = Math.cos(idleAngle) * 6.5;
+                        camera.position.y = 2.4;
+                        camera.lookAt(0, 1.1, 0);
+                    } else if (state === CAMERA_STATES.APPROACHING) {
+                        const elapsed = timestamp - animStartTimeRef.current;
+                        const duration = 2200;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const eased = easeInOutCubic(progress);
+                        camera.position.x = 1.25 - 1.25 * eased;
+                        camera.position.y = 2.4 - 0.9 * eased;
+                        camera.position.z = 6.5 - 3.8 * eased;
+                        camera.lookAt(0, 1.05, 0);
+                        if (progress >= 1) {
+                            cameraStateRef.current = CAMERA_STATES.AT_DESK;
+                            if (onReadyForClick) {
+                                setTimeout(onReadyForClick, 350);
+                            }
+                        }
+                    } else if (state === CAMERA_STATES.ZOOMING) {
+                        const elapsed = timestamp - animStartTimeRef.current;
+                        const duration = 1600;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const eased = easeInOutCubic(progress);
+                        camera.position.x = 0;
+                        camera.position.y = 1.5 - 0.25 * eased;
+                        camera.position.z = 2.7 - 1.9 * eased;
+                        camera.lookAt(0, 1.16, 0);
+                        if (progress >= 1) {
+                            cameraStateRef.current = CAMERA_STATES.AT_MONITOR;
+                            if (onAnimationComplete) {
+                                setTimeout(onAnimationComplete, 280);
+                            }
+                        }
+                    } else if (state === CAMERA_STATES.RETURNING) {
+                        const elapsed = timestamp - animStartTimeRef.current;
+                        const duration = 1500;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const eased = easeInOutCubic(progress);
+                        camera.position.x = 0;
+                        camera.position.y = 1.25 + 0.25 * eased;
+                        camera.position.z = 0.8 + 1.4 * eased;
+                        camera.lookAt(0, 1.08, 0);
+                        if (progress >= 1) {
+                            cameraStateRef.current = CAMERA_STATES.AT_DESK;
+                            if (onReturnComplete) {
+                                setTimeout(onReturnComplete, 250);
+                            }
+                        }
+                    }
+
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(animate);
+                }
+
+                animStartTimeRef.current = performance.now();
+                requestAnimationFrame(animate);
+
+                const handleResize = () => {
+                    if (!rendererRef.current || !cameraRef.current) return;
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+                    rendererRef.current.setSize(width, height);
+                    cameraRef.current.aspect = width / height;
+                    cameraRef.current.updateProjectionMatrix();
+                };
+
+                window.addEventListener('resize', handleResize);
+
+                return () => {
+                    window.removeEventListener('resize', handleResize);
+                    if (rendererRef.current) {
+                        rendererRef.current.dispose();
+                    }
+                    if (containerRef.current && renderer.domElement) {
+                        containerRef.current.removeChild(renderer.domElement);
+                    }
+                };
+            }, [onAnimationComplete, onReadyForClick, onReturnComplete, onLoadProgress, onModelsLoaded]);
+
+            useEffect(() => {
+                if (!cameraRef.current) return;
+                if (stage === 'approaching') {
+                    cameraStateRef.current = CAMERA_STATES.APPROACHING;
+                    animStartTimeRef.current = performance.now();
+                } else if (stage === 'zooming') {
+                    cameraStateRef.current = CAMERA_STATES.ZOOMING;
+                    animStartTimeRef.current = performance.now();
+                } else if (stage === 'waiting') {
+                    cameraStateRef.current = CAMERA_STATES.AT_DESK;
+                } else if (stage === 'interface') {
+                    cameraStateRef.current = CAMERA_STATES.AT_MONITOR;
+                } else if (stage === 'returning') {
+                    cameraStateRef.current = CAMERA_STATES.RETURNING;
+                    animStartTimeRef.current = performance.now();
+                }
+            }, [stage]);
+
+            return <div ref={containerRef} />;
+        }
+
+        function buildFallbackDesk(group) {
+            const deskMaterial = new THREE.MeshStandardMaterial({ color: 0x5d5d5d, roughness: 0.6 });
+            const deskTop = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.08, 1.25), deskMaterial);
+            deskTop.position.set(0, 0.75, 0);
+            deskTop.castShadow = true;
+            deskTop.receiveShadow = true;
+            group.add(deskTop);
+
+            const legGeometry = new THREE.BoxGeometry(0.12, 0.75, 0.12);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.5 });
+            const legPositions = [
+                [-1.2, 0.37, -0.5],
+                [1.2, 0.37, -0.5],
+                [-1.2, 0.37, 0.5],
+                [1.2, 0.37, 0.5],
+            ];
+            legPositions.forEach(([x, y, z]) => {
+                const leg = new THREE.Mesh(legGeometry, legMaterial);
+                leg.position.set(x, y, z);
+                leg.castShadow = true;
+                leg.receiveShadow = true;
+                group.add(leg);
+            });
+
+            const monitorFrame = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 0.72, 0.12),
+                new THREE.MeshStandardMaterial({ color: 0x1e1e1e, metalness: 0.1, roughness: 0.7 })
+            );
+            monitorFrame.position.set(0, 1.32, -0.14);
+            monitorFrame.castShadow = true;
+            group.add(monitorFrame);
+
+            const monitorScreen = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.88, 0.62),
+                new THREE.MeshBasicMaterial({ color: 0x73f7f7 })
+            );
+            monitorScreen.position.set(0, 1.32, -0.08);
+            group.add(monitorScreen);
+
+            const standBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.12, 0.12, 24),
+                new THREE.MeshStandardMaterial({ color: 0x2f2f2f, roughness: 0.6 })
+            );
+            standBase.position.set(0, 0.86, -0.16);
+            group.add(standBase);
+
+            const keyboard = new THREE.Mesh(
+                new THREE.BoxGeometry(0.75, 0.04, 0.32),
+                new THREE.MeshStandardMaterial({ color: 0xd8d8d8, roughness: 0.7 })
+            );
+            keyboard.position.set(0, 0.78, 0.32);
+            keyboard.rotation.x = -0.1;
+            group.add(keyboard);
+
+            const mouse = new THREE.Mesh(
+                new THREE.BoxGeometry(0.12, 0.04, 0.16),
+                new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+            );
+            mouse.position.set(0.5, 0.79, 0.32);
+            group.add(mouse);
+
+            const plantPot = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.11, 0.09, 0.16, 12),
+                new THREE.MeshStandardMaterial({ color: 0xffffff })
+            );
+            plantPot.position.set(-0.86, 0.84, 0.08);
+            group.add(plantPot);
+
+            const plantLeaves = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 12, 12),
+                new THREE.MeshStandardMaterial({ color: 0x57a867 })
+            );
+            plantLeaves.scale.set(1, 1.25, 1);
+            plantLeaves.position.set(-0.86, 1.05, 0.08);
+            group.add(plantLeaves);
+        }
+
+        function App() {
+            const [stage, setStage] = useState('initial');
+            const [currentPage, setCurrentPage] = useState('about');
+            const [loadProgress, setLoadProgress] = useState(0);
+            const [modelsReady, setModelsReady] = useState(false);
+            const [clockTime, setClockTime] = useState(new Date());
+
+            useEffect(() => {
+                const timer = setInterval(() => setClockTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            useEffect(() => {
+                const canvas = document.getElementById('canvas-container');
+                if (!canvas) return;
+                if (stage === 'interface') {
+                    canvas.classList.add('fade-out');
+                } else {
+                    canvas.classList.remove('fade-out');
+                }
+            }, [stage]);
+
+            const handleStart = () => {
+                setStage('approaching');
+            };
+
+            const handleReadyForClick = () => {
+                setStage('waiting');
+            };
+
+            const handleClickToZoom = () => {
+                setStage('zooming');
+            };
+
+            const handleAnimationComplete = () => {
+                setStage('interface');
+            };
+
+            const handleReturnComplete = () => {
+                setStage('waiting');
+            };
+
+            const handleCloseWindow = () => {
+                setStage('returning');
+            };
+
+            return (
+                <>
+                    {stage !== 'initial' && (
+                        <ThreeScene
+                            stage={stage}
+                            onReadyForClick={handleReadyForClick}
+                            onAnimationComplete={handleAnimationComplete}
+                            onReturnComplete={handleReturnComplete}
+                            onLoadProgress={setLoadProgress}
+                            onModelsLoaded={() => setModelsReady(true)}
+                        />
+                    )}
+
+                    <div id="ui-overlay">
+                        {stage === 'initial' && (
+                            <div className="start-screen">
+                                <div className="start-box">
+                                    <h1>{PORTFOLIO_CONFIG.name} Portfolio Showcase 2025</h1>
+                                    <p>Click start to begin</p>
+                                    <button className="button" onClick={handleStart}>
+                                        START
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={`loading-overlay ${modelsReady || stage === 'interface' ? 'hidden' : ''}`}>
+                            <div>Loading 3D scene...</div>
+                            <div className="loading-bar">
+                                <div className="loading-bar-fill" style={{ width: `${Math.round(loadProgress * 100)}%` }} />
+                            </div>
+                            <div>{Math.round(loadProgress * 100)}%</div>
+                        </div>
+
+                        {stage === 'waiting' && (
+                            <div className="click-instruction visible" onClick={handleClickToZoom}>
+                                Click anywhere to begin
+                            </div>
+                        )}
+
+                        {stage === 'interface' && (
+                            <>
+                                <div className="info-panel visible">
+                                    <div>{PORTFOLIO_CONFIG.name}</div>
+                                    <div>{PORTFOLIO_CONFIG.title}</div>
+                                    <div>{clockTime.toLocaleTimeString()}</div>
+                                </div>
+
+                                <div className="nav-menu visible">
+                                    <div
+                                        className={`nav-item ${currentPage === 'about' ? 'active' : ''}`}
+                                        onClick={() => setCurrentPage('about')}
+                                    >
+                                        📝 ABOUT
+                                    </div>
+                                    <div
+                                        className={`nav-item ${currentPage === 'experience' ? 'active' : ''}`}
+                                        onClick={() => setCurrentPage('experience')}
+                                    >
+                                        💼 EXPERIENCE
+                                    </div>
+                                    <div
+                                        className={`nav-item ${currentPage === 'projects' ? 'active' : ''}`}
+                                        onClick={() => setCurrentPage('projects')}
+                                    >
+                                        🚀 PROJECTS
+                                    </div>
+                                    <div
+                                        className={`nav-item ${currentPage === 'contact' ? 'active' : ''}`}
+                                        onClick={() => setCurrentPage('contact')}
+                                    >
+                                        📧 CONTACT
+                                    </div>
+                                </div>
+
+                                <div className="window visible" style={{ left: '50%', top: '50%', width: '620px' }}>
+                                    <div className="title-bar">
+                                        <span>💾 {PORTFOLIO_CONFIG.name} - Showcase 2025</span>
+                                        <div className="close-btn" onClick={handleCloseWindow}>
+                                            ✕
+                                        </div>
+                                    </div>
+                                    <div className="window-content">{renderContent(currentPage)}</div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </>
+            );
+        }
+
+        function renderContent(currentPage) {
+            switch (currentPage) {
+                case 'about':
+                    return (
+                        <div>
+                            <h2>{PORTFOLIO_CONFIG.about.greeting}</h2>
+                            <p>
+                                <strong>I'm {PORTFOLIO_CONFIG.name}</strong>
+                            </p>
+                            <p>{PORTFOLIO_CONFIG.about.intro}</p>
+                            <p>{PORTFOLIO_CONFIG.about.description}</p>
+                            <h3>📄 {PORTFOLIO_CONFIG.about.resume}</h3>
+                        </div>
+                    );
+                case 'experience':
+                    return (
+                        <div>
+                            <h2>Experience</h2>
+                            {PORTFOLIO_CONFIG.experience.map((exp, idx) => (
+                                <div key={idx}>
+                                    <h3>{exp.company}</h3>
+                                    <p>
+                                        <strong>{exp.role}</strong>
+                                    </p>
+                                    <p>{exp.period}</p>
+                                    {exp.website && (
+                                        <p>
+                                            <a href={`https://${exp.website}`} target="_blank" rel="noreferrer">
+                                                {exp.website}
+                                            </a>
+                                        </p>
+                                    )}
+                                    <ul>
+                                        {exp.achievements.map((achievement, i) => (
+                                            <li key={i}>{achievement}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                case 'projects':
+                    return (
+                        <div>
+                            <h2>Projects &amp; Hobbies</h2>
+                            <p>Click on one of the areas below to check out some of my favorite projects.</p>
+                            {PORTFOLIO_CONFIG.projects.map((category, idx) => (
+                                <div key={idx} className="project-category">
+                                    <h3>
+                                        {category.icon} {category.category}
+                                    </h3>
+                                    {category.items.map((item, i) => (
+                                        <div key={i} style={{ marginTop: '10px' }}>
+                                            <strong>{item.name}</strong>
+                                            <p>{item.description}</p>
+                                            <p>
+                                                <em>Tech: {item.tech.join(', ')}</em>
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                case 'contact':
+                    return (
+                        <div>
+                            <h2>Contact</h2>
+                            <p>Feel free to reach out - I would love to chat!</p>
+                            <p>
+                                <strong>Email:</strong>{' '}
+                                <a href={`mailto:${PORTFOLIO_CONFIG.email}`}>{PORTFOLIO_CONFIG.email}</a>
+                            </p>
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    alert('Form submitted! (Connect to a backend service)');
+                                }}
+                            >
+                                <label>Your name:</label>
+                                <input type="text" required />
+                                <label>Email:</label>
+                                <input type="email" required />
+                                <label>Company (optional):</label>
+                                <input type="text" />
+                                <label>Message:</label>
+                                <textarea rows="5" required />
+                                <button type="submit" className="button">
+                                    Send Message
+                                </button>
+                            </form>
+                            <div style={{ marginTop: '20px' }}>
+                                <a href={PORTFOLIO_CONFIG.social.github} target="_blank" rel="noreferrer" className="button">
+                                    GitHub
+                                </a>
+                                <a href={PORTFOLIO_CONFIG.social.linkedin} target="_blank" rel="noreferrer" className="button">
+                                    LinkedIn
+                                </a>
+                                <a href={PORTFOLIO_CONFIG.social.twitter} target="_blank" rel="noreferrer" className="button">
+                                    Twitter
+                                </a>
+                            </div>
+                        </div>
+                    );
+                default:
+                    return null;
+            }
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
